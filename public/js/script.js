@@ -1,11 +1,24 @@
 const socket = io();
+const map = L.map("map").setView([0, 0], 16);
+
+L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    attribution: 'stay-close by Viplav Khode'
+}).addTo(map);
+
 let myState = null;
+let initialViewSet = false;
 
 if (navigator.geolocation) {
     navigator.geolocation.watchPosition(
         (position) => {
             const { latitude, longitude } = position.coords;
             myState = { latitude, longitude };
+
+            if (!initialViewSet) {
+                map.setView([latitude, longitude], 16);
+                initialViewSet = true;
+            }
+
             socket.emit("send-location", { latitude, longitude });
             updateAllDistances();
         },
@@ -20,13 +33,20 @@ if (navigator.geolocation) {
     );
 }
 
-const map = L.map("map").setView([0, 0], 16);
-
-L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    attribution: 'stay-close by Viplav Khode'
-}).addTo(map);
-
 const markers = {};
+const userPaths = {};
+
+function updatePath(id, latitude, longitude) {
+    if (userPaths[id]) {
+        userPaths[id].addLatLng([latitude, longitude]);
+    } else {
+        userPaths[id] = L.polyline([[latitude, longitude]], {
+            color: '#0000FF',
+            weight: 4,
+            opacity: 0.7
+        }).addTo(map);
+    }
+}
 
 function updateAllDistances() {
     if (!myState) return;
@@ -75,6 +95,7 @@ socket.on("receive-location", (data) => {
         markers[id] = L.marker([latitude, longitude]).addTo(map);
     }
 
+    updatePath(id, latitude, longitude);
     updateMarkerDistance(id);
 });
 
@@ -86,6 +107,7 @@ socket.on("existing-users", (users) => {
         } else {
             markers[id] = L.marker([latitude, longitude]).addTo(map);
         }
+        updatePath(id, latitude, longitude);
         updateMarkerDistance(id);
     }
 });
@@ -94,6 +116,10 @@ socket.on("user-disconnected", (id) => {
     if (markers[id]) {
         map.removeLayer(markers[id]);
         delete markers[id];
+    }
+    if (userPaths[id]) {
+        map.removeLayer(userPaths[id]);
+        delete userPaths[id];
     }
 });
 
