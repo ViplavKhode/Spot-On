@@ -1,22 +1,23 @@
 const socket = io();
+let myState = null;
 
-//from documentation
 if (navigator.geolocation) {
     navigator.geolocation.watchPosition(
         (position) => {
             const { latitude, longitude } = position.coords;
+            myState = { latitude, longitude };
             socket.emit("send-location", { latitude, longitude });
+            updateAllDistances();
         },
         (error) => {
-            console.log(error);
+            console.error(error);
         },
         {
             enableHighAccuracy: true,
-            timeout: 200000,
+            timeout: 5000,
             maximumAge: 0
-        });
-} else {
-    console.log("Geolocation is not supported by this browser");
+        }
+    );
 }
 
 const map = L.map("map").setView([0, 0], 16);
@@ -27,16 +28,54 @@ L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
 
 const markers = {};
 
+function updateAllDistances() {
+    if (!myState) return;
+    Object.keys(markers).forEach(id => {
+        updateMarkerDistance(id);
+    });
+}
+
+function updateMarkerDistance(id) {
+    const marker = markers[id];
+    if (!marker || !myState) return;
+
+    if (id === socket.id) {
+        if (!marker.getPopup()) marker.bindPopup("You are here");
+        else marker.setPopupContent("You are here");
+        return;
+    }
+
+    const markerLatLng = marker.getLatLng();
+    const myLatLng = L.latLng(myState.latitude, myState.longitude);
+    const distance = myLatLng.distanceTo(markerLatLng);
+
+    const distStr = distance > 1000
+        ? `${(distance / 1000).toFixed(2)} km`
+        : `${Math.round(distance)} m`;
+
+    const popupContent = `Distance: ${distStr}`;
+
+    if (marker.getPopup()) {
+        marker.setPopupContent(popupContent);
+    } else {
+        marker.bindPopup(popupContent);
+    }
+}
+
 socket.on("receive-location", (data) => {
     const { id, latitude, longitude } = data;
+
     if (id === socket.id) {
         map.setView([latitude, longitude]);
     }
+
     if (markers[id]) {
         markers[id].setLatLng([latitude, longitude]);
     } else {
         markers[id] = L.marker([latitude, longitude]).addTo(map);
     }
+
+    updateMarkerDistance(id);
 });
 
 socket.on("existing-users", (users) => {
@@ -47,6 +86,7 @@ socket.on("existing-users", (users) => {
         } else {
             markers[id] = L.marker([latitude, longitude]).addTo(map);
         }
+        updateMarkerDistance(id);
     }
 });
 
