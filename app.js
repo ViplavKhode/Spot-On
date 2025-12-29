@@ -19,8 +19,13 @@ io.on("connection", (socket) => {
     console.log("a user connected");
 
     socket.on("send-location", (data) => {
-        markers[socket.id] = { ...data, id: socket.id };
-        io.emit("receive-location", { id: socket.id, ...data });
+        // Merge with existing data to preserve name if not present in new packet
+        if (markers[socket.id]) {
+            markers[socket.id] = { ...markers[socket.id], ...data };
+        } else {
+            markers[socket.id] = { ...data, id: socket.id };
+        }
+        io.emit("receive-location", { id: socket.id, ...markers[socket.id] });
     });
 
     socket.on("disconnect", () => {
