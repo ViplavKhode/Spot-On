@@ -1,0 +1,25 @@
+{
+  "name": "spot-on",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ViplavKhode/Spot-On.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ViplavKhode/Spot-On/issues"
+  },
+  "homepage": "https://github.com/ViplavKhode/Spot-On#readme",
+  "dependencies": {
+    "ejs": "^3.1.10",
+    "express": "^5.2.1",
+    "socket.io": "^4.8.3"
+  }
+}
